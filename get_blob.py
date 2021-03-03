@@ -1,5 +1,5 @@
 import uuid
-from io import StringIO
+import os
 from azure.storage.blob import BlobServiceClient, ContainerClient
 
 
@@ -33,19 +33,26 @@ class Blob:
     def last_blob(self):
         files = self.container_client.list_blobs()
         blobs = {}
-
-        for file in files.enumerate():
+        
+        for file in files:
             blobs.update({file.name: file.creation_time})
 
         return max(blobs, key=blobs.get)
 
     def get_blob(self):
-        local_path = os.path.expanduser("~/Data")
+        local_path = "./data"
+        try:
+            os.mkdir(local_path)
+        except:
+            print('data folder already exists')
+
         local_file_name = "bigquery_" + str(uuid.uuid4()) + ".json"
         full_path = os.path.join(local_path, local_file_name)
 
-        with open(local_file_name, "wb") as download_file:
-            download_file.write(self.container_client.download_blob(last_blob()))
+        blob_client = self.blob_service.get_blob_client(container=self.container_name, blob=self.last_blob())
+
+        with open(full_path, "wb") as download_file:
+            download_file.write(blob_client.download_blob().readall())
 
 bigquery = Blob(BLOB_CONTAINER)
 bigquery.get_blob()
